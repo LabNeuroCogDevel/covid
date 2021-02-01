@@ -89,13 +89,27 @@ model_CONNDATA <-function(){
     # N.B. names(all_models) is no longer the same as all_conns
     all_models <- Filter(function(x) !is.null(x), all_models)
 
-    plot_conn(names(all_models)[1])
-    plot_model_sexcolor(all_models[[1]])
+    all_pvals <- sapply(all_models, pval_age)
+    summary(all_pvals)
+    # Min.     1st Qu.    Median      Mean   3rd Qu.      Max.
+    #0.0000156 0.2011451 0.4555715 0.4596300 0.7302006 0.9766166
+    names(all_pvals[all_pvals <= .05])
+    # "NAcc_amOFC1"    "NAcc_avmPFC"    "NAcc_sgACC"     "NAcc_rACC"     
+    # "Caudate_avmPFC" "Caudate_A32p"   "Caudate_A24cd"  "Caudate_dIa"   
+    # "Putamen_avmPFC" "Putamen_A24cd"  "aHPC_avmPFC"    "pHPC_pmOFC1"   
+    # "amOFC1_amOFC2"  "avmPFC_rACC"   
+    
 
-    all_sig_vals <- sapply(all_models, pval_age)
     #sig_models <- Filter(function(m) age_issig(m, p=.01), all_models)
-    sig_models_05 <- all_models[all_sig_vals <= .05]
-    cat(glue::glue("{length(all_conns)} total connections, {length(all_models)} modeled, and {length(sig_models_01)} (.05) with sig age effect (uncorrected)\n"))
+    sig_models_05 <- all_models[all_pvals <= .05]
+    cat(glue::glue("{length(all_conns)} total connections, {length(all_models)} modeled, and {length(sig_models_05)} (.05) with sig age effect (uncorrected)\n"))
+
+
+    
+    plot_conn(names(sig_models_05)[1])
+    plot_model_sexcolor(sig_models_05[[1]])
+
+    return(sig_models_05)
 
 }
 
