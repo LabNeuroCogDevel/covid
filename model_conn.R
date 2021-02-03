@@ -6,14 +6,16 @@ require(dplyr)
 # this is a large (~180Mb) file
 CONNDATA <- NULL
 
+# group by all the the columns we might use later
+# but not conn (want to mean that) and not 
+# 'srcHemi' and 'lat' (collapsing those vlues)
 collapse_hemiside <- function(d){
-   # group by all the the columns we might use later
-   # but not conn (want to mean that) and not 
-   # 'srcHemi' and 'lat' (collapsing those vlues)
    d %>% group_by(study, subj, ses_id, age, sex, fd_mean, connName) %>%
       summarise(conn=mean(conn))
 }
 
+# take only the first visit
+# from either study
 only_1ses <- function(d) {
     d %>%
         group_by(subj) %>%
@@ -73,6 +75,9 @@ harmonize <- function(connName) {
 # set the default model based on what data we give it
 # if we have srcHemi as a column use that and lat
 # otherwise assume we've collapsed lat and scrHemi
+# without multiple values for each roi-roi pair (connName)
+# we'll only have 1 value per subject after harmonizing
+# so we will not have a random effecto of subj
 default_model <- function(d) {
   if('srcHemi' %in% names(d))
     model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
@@ -81,8 +86,11 @@ default_model <- function(d) {
 }
 
 model_conn <- function(harmonized, model=NULL) {
-  # default model
+  # default to ... the default model
   if(is.null(model)) model <- default_model(harmonized)
+
+  # lmer if we have 'subj' in the forumla (indicating random effects)
+  # lm if simple linear model
   with_rand_ef <- any(grepl('subj',as.character(m)))
   if(with_rand_ef)
     m <- lmer(data=harmonized, model)
@@ -90,6 +98,8 @@ model_conn <- function(harmonized, model=NULL) {
     m <- lm(data=harmonized, model)
 }
 
+# see a connections values across age and sex
+# in the "raw" conn data
 plot_conn <- function(conn) {
   conn_df <- subset_conn(conn)
   ggplot(conn_df) +
@@ -99,6 +109,10 @@ plot_conn <- function(conn) {
       cowplot::theme_cowplot() +
       ggtitle(glue::glue("{conn} by age w/sex"))
 }
+
+# plot the model
+# assuming age and sex are factors we want to look at
+# and conn is the dependent variable
 plot_model_sexcolor <- function(m) {
   pred <- ggeffects::ggpredict(m, term=c("age", "sex"))
   # ggpredict creates dataframe with outcompe 'predict'
@@ -119,6 +133,8 @@ plot_model_sexcolor <- function(m) {
       ggtitle(glue::glue("{conn} by age w/sex"))
 }
 
+# wrap up the two steps and catch errors so we can quickly run on everyone
+# even if some models don't work (namely roi paired with it's self)
 harmonize_and_model <-function(connName, ...){
    tryCatch(model_conn(harmonize(connName), ...),error=function(e){
        warning(e)
