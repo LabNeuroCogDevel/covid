@@ -91,7 +91,7 @@ model_conn <- function(harmonized, model=NULL) {
 
   # lmer if we have 'subj' in the forumla (indicating random effects)
   # lm if simple linear model
-  with_rand_ef <- any(grepl('subj',as.character(m)))
+  with_rand_ef <- any(grepl('subj',as.character(model)))
   if(with_rand_ef)
     m <- lmer(data=harmonized, model)
   else
