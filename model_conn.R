@@ -4,7 +4,7 @@ require(dplyr)
 
 # treat data as global variable in functions
 # this is a large (~180Mb) file
-CONNDATA <- read.csv('data/covid_conn_long.csv')
+CONNDATA <- NULL
 
 collapse_hemiside <- function(d){
    # group by all the the columns we might use later
@@ -22,6 +22,14 @@ only_1ses <- function(d) {
         filter(vrank < 2) %>%
         select(-vrank)
 }
+
+set_CONNDATA <- function() {
+    # updates global variable. large ~180Mb file
+    CONNDATA <- read.csv('data/covid_conn_long.csv')  %>%
+       collapse_hemiside  %>%
+       only_1ses
+}
+
 
 
 # narrow large df to just the connection we want to inspect
@@ -114,6 +122,9 @@ age_issig <- function(m, p=.05) pval_age(m) < p
 
 ### START HERE
 model_CONNDATA <-function(model=NULL){
+    # updating global variable! only do it if it doesn't exist
+    if(!exists("CONNDATA") || is.null(CONNDATA)) set_CONNDATA()
+
     # if model is null, default set in model_conn is used
     #  model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
     all_conns <- unique(CONNDATA$connName)
