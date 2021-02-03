@@ -1,17 +1,28 @@
 require(neuroCombat) 
 require(lme4)
+require(dplyr)
 
 # treat data as global variable in functions
 # this is a large (~180Mb) file
 CONNDATA <- read.csv('data/covid_conn_long.csv')
 
+only_1ses <- function(d) {
+    d %>%
+        group_by(lunaid) %>%
+        mutate(vdate=gsub('.*_', '', ses_id),
+               vrank=rank(vdate, ties.method="min")) %>%
+        filter(vrank < 2) %>%
+        select(-vrank)
+}
 
-# narrow to large DF to just the connection we want to inspect
-# connName like "NAcc_Caudate"
-subset_conn <- function(connName){
-  this <- CONNDATA[CONNDATA$connName == connName,]
-  this <- this[this$age >0,]
-  this <- this[!is.na(this$conn),]
+
+# narrow large df to just the connection we want to inspect
+# @param thisConnName roi-roi pair connectivity name "NAcc_Caudate"
+subset_conn <- function(thisConnName){
+    CONNDATA %>%
+        filter(connName == thisConnName,
+               age > 0,
+               !is.na(conn))
 }
 
 # make 'conn' harnomized value, 'conn.original' has old values
