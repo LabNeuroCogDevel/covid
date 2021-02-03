@@ -25,7 +25,7 @@ only_1ses <- function(d) {
 
 set_CONNDATA <- function() {
     # updates global variable. large ~180Mb file
-    CONNDATA <- read.csv('data/covid_conn_long.csv')  %>%
+    CONNDATA <<- read.csv('data/covid_conn_long.csv')  %>%
        collapse_hemiside  %>%
        only_1ses
 }
