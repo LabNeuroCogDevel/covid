@@ -6,6 +6,14 @@ require(dplyr)
 # this is a large (~180Mb) file
 CONNDATA <- read.csv('data/covid_conn_long.csv')
 
+collapse_hemiside <- function(d){
+   # group by all the the columns we might use later
+   # but not conn (want to mean that) and not 
+   # 'srcHemi' and 'lat' (collapsing those vlues)
+   d %>% group_by(study, subj, ses_id, age, sex, fd_mean, connName) %>%
+      summarise(conn=mean(conn))
+}
+
 only_1ses <- function(d) {
     d %>%
         group_by(lunaid) %>%
@@ -51,11 +59,19 @@ harmonize <- function(connName) {
   this <- this[which(abs(z) < 3),]
 }
 
+# set the default model based on what data we give it
+# if we have srcHemi as a column use that and lat
+# otherwise assume we've collapsed lat and scrHemi
+default_model <- function(d) {
+  if('srcHemi' %in% names(harmonized))
+    model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
+  else
+    model <- conn ~ age + sex + fd_mean + (1|study/subj)
+}
+
 model_conn <- function(harmonized, model=NULL) {
   # default model
-  if(is.null(model))
-    model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
-
+  if(is.null(model)) model <- default_model(harmonized)
   m <- lmer(data=harmonized, model)
 }
 
