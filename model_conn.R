@@ -16,13 +16,16 @@ collapse_hemiside <- function(d){
 
 only_1ses <- function(d) {
     d %>%
-        group_by(lunaid) %>%
+        group_by(subj) %>%
         mutate(vdate=gsub('.*_', '', ses_id),
                vrank=rank(vdate, ties.method="min")) %>%
         filter(vrank < 2) %>%
         select(-vrank)
 }
 
+# CONNDATA takes a while to read
+# don't want to pass it around every time we harmoinze a connName
+# so set global
 set_CONNDATA <- function() {
     # updates global variable. large ~180Mb file
     CONNDATA <<- read.csv('data/covid_conn_long.csv')  %>%
@@ -71,16 +74,20 @@ harmonize <- function(connName) {
 # if we have srcHemi as a column use that and lat
 # otherwise assume we've collapsed lat and scrHemi
 default_model <- function(d) {
-  if('srcHemi' %in% names(harmonized))
+  if('srcHemi' %in% names(d))
     model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
   else
-    model <- conn ~ age + sex + fd_mean + (1|study/subj)
+    model <- conn ~ age + sex + fd_mean
 }
 
 model_conn <- function(harmonized, model=NULL) {
   # default model
   if(is.null(model)) model <- default_model(harmonized)
-  m <- lmer(data=harmonized, model)
+  with_rand_ef <- any(grepl('subj',as.character(m)))
+  if(with_rand_ef)
+    m <- lmer(data=harmonized, model)
+  else
+    m <- lm(data=harmonized, model)
 }
 
 plot_conn <- function(conn) {
@@ -113,7 +120,9 @@ plot_model_sexcolor <- function(m) {
 }
 
 harmonize_and_model <-function(connName, ...){
-   tryCatch(model_conn(harmonize(connName), ...),error=function(e) NULL)
+   tryCatch(model_conn(harmonize(connName), ...),error=function(e){
+       warning(e)
+       NULL})
 }
 
 # get age pvalue from model
