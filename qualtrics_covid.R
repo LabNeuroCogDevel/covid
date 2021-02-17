@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 
+# 20210217WF - move qualtrics to covid directory. data/ instead of txt/
 # 20210121WF - combine Kid and Adult covid qualtrics surveys
-#  creates  'txt/covid_battery.csv' and 'txt/covid_battery_name_matches.csv'
+#  creates  'data/qualtrics_adult-kid.csv' and 'data/covid_battery_name_matches_adult-kid.csv'
 #
 # INTERACTIVE NOTE:
 #  the first time this is run, it is necessary to interactively pair the two suvey questions
@@ -40,11 +41,11 @@ names(kids)   <- LNCDR::qualtrics_labels(kids)
 # INTERACTIVE: match questions between the two
 # but only if we haven't already.
 # if match file already exists, reuse it instead of interactive matching
-matches_csv <- 'txt/covid_battery_name_matches_adult-kid.csv'
+matches_csv <- 'data/covid_battery_name_matches_adult-kid.csv'
 if(file.exists(matches_csv)){
     matches <- read.csv(matches_csv)
 } else {
-    if (!exists('txt')) dir.create('txt')
+    if (!exists('data')) dir.create('data')
     na <- names(adults)
     nk <- names(kids)
     matches_matrix <- LNCDR::interactive_label_match(na, nk, accept_single=T, diffprint=F)
@@ -62,8 +63,8 @@ names(k) <- names(a)
 all_covid_battery <- rbind(a, k)
 
 # save
-write.csv(all_covid_battery, 'txt/qualtrics-sharedonly_adult-kid.csv', row.names=F)
-# all_covid_battery <- read.csv('txt/covid_battery_sharedonly.csv') %>%
+write.csv(all_covid_battery, 'data/qualtrics-sharedonly_adult-kid.csv', row.names=F)
+# all_covid_battery <- read.csv('data/covid_battery_sharedonly.csv') %>%
 #  rename(`External Data Reference`=External.Data.Reference)
 
 # add adult only questions
@@ -74,4 +75,4 @@ all_covid_battery_and_adult <-
     merge(all_covid_battery,
           adult_only,
           by="External Data Reference", all.x=TRUE)
-write.csv(all_covid_battery, 'txt/qualtrics_adult-kid.csv', row.names=F)
+write.csv(all_covid_battery, 'data/qualtrics_adult-kid.csv', row.names=F)
