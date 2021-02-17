@@ -48,9 +48,9 @@ if(file.exists(matches_csv)){
     na <- names(adults)
     nk <- names(kids)
     matches_matrix <- LNCDR::interactive_label_match(na, nk, accept_single=T, diffprint=F)
-    write.csv(matches_matrix, matches_csv, row.names=F)
-    matches <- read.csv(matches_csv)
+    matches <- as.data.frame(matches_matrix)
     names(matches) <- c('adult','kids')
+    write.csv(matches_matrix, matches_csv, row.names=F)
 }
 
 # select just the overlapping columns
@@ -62,7 +62,7 @@ names(k) <- names(a)
 all_covid_battery <- rbind(a, k)
 
 # save
-write.csv(all_covid_battery, 'txt/qualtircs-sharedonly_adult-kid.csv', row.names=F)
+write.csv(all_covid_battery, 'txt/qualtrics-sharedonly_adult-kid.csv', row.names=F)
 # all_covid_battery <- read.csv('txt/covid_battery_sharedonly.csv') %>%
 #  rename(`External Data Reference`=External.Data.Reference)
 
