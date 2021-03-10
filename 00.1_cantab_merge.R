@@ -1,4 +1,12 @@
 #!/usr/bin/env Rscript
+
+#
+# summerise and combined CANTAB tasks (MOT and SOC) for two studies (PET and 7T)
+# depends on 
+#   7T:  individual sheets combined by 00.0_pull_cantab.R
+#   PET: and on exported summary datasheet (from cantab gui) 
+# 20210310WF
+
 library(dplyr)
 library(tidyr)
 library(lubridate)

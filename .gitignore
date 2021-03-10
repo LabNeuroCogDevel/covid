@@ -1,2 +1,3 @@
 *.ini
-txt/qualtrics*.csv 
+data/qualtrics*.csv 
+data/cantab*.csv

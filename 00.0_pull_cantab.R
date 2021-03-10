@@ -1,4 +1,12 @@
 #!/usr/bin/env Rscript
+
+# read in all MOT and SOC CANTAB sheets (line per event)
+# collapse into single sheet per task
+#
+# will be summerised and combined by 00.1_cantab_merge.R
+# 20210310WF
+
+
 library(dplyr)
 
 read_one <- function(f){

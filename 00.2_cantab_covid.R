@@ -1,4 +1,9 @@
 #!/usr/bin/Rscript
+
+# combine cantab MOT/SOC summaries and covid questioneer
+# 
+# 20210310 WF
+
 library(dplyr)
 library(tidyr)
 library(lubridate)
