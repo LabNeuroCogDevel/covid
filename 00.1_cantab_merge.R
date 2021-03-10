@@ -5,14 +5,22 @@
 # depends on 
 #   7T:  individual sheets combined by 00.0_pull_cantab.R
 #   PET: and on exported summary datasheet (from cantab gui) 
-# 20210310WF
-
+#
+# output will be used by 00.2_cantab_covid.R to combine with covid datasheet
+# 20210310WF - init
+  
+suppressPackageStartupMessages({
 library(dplyr)
 library(tidyr)
 library(lubridate)
+})
 
-yes_to_1 <- function(x) ifelse(x=="yes", 1, 0) # currently no longer used
+# currently no longer used
+# MOT:hit and soc:solved.in.min do not need numeric encoding
+# but if they did, this would be useful
+yes_to_1 <- function(x) ifelse(x=="yes", 1, 0)
 
+# add session/year/visit number to each row
 add_sesnum <- function(d, idcol='ID', dcol='vdate', sescol='session')
     d %>%
         group_by(.data[[idcol]]) %>%
@@ -23,7 +31,7 @@ mot_7t <- read.csv('data/cantab_mot.csv')
 soc_7t <- read.csv('data/cantab_soc.csv')
 pet    <- read.csv('data/cantabsummarydatasheet_pet_20200130.csv')
 
-# merge
+# summarise and merge
 mot <- mot_7t %>%
     # mutate(hit=yes_to_1(hit)) %>%
     group_by(ld8) %>%
@@ -49,10 +57,13 @@ motsoc_pet <- pet %>%
     mutate(vdate=gsub(' \\d+:.*', '', vdate) %>% mdy()) %>%
     add_sesnum()
 
+
+# combine
 pet_7t <- rbind(motsoc_pet %>% mutate(study='pet'),
                 motsoc_7t %>% mutate(study='7T')) %>%
     # another session column 'anyvisit_num' that counts 7T and PET together
     add_sesnum(sescol='anyvisit_num') %>%
     arrange(ID, vdate)
 
+# save
 write.csv(pet_7t, 'data/cantab_pet7T_motsoc.csv', row.names=F, quote=F)

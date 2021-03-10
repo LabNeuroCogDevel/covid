@@ -4,10 +4,11 @@
 # collapse into single sheet per task
 #
 # will be summerised and combined by 00.1_cantab_merge.R
-# 20210310WF
+# end goal is to merge with covid data (00.2_cantab_covid.R)
+# 20210310WF - init
 
 
-library(dplyr)
+suppressPackageStartupMessages({library(dplyr)})
 
 read_one <- function(f){
    d <- read.csv(f) %>% 
