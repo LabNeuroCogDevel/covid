@@ -11,10 +11,17 @@
 suppressPackageStartupMessages({library(dplyr)})
 
 read_one <- function(f){
-   d <- read.csv(f) %>% 
-      mutate(ld8 = LNCDR::ld8from(f))
+   # 20210311 - do not want "DESCRIPTION" part of sheet 
+   # skip no value line like "","",""... ; end if empty line (line before "DESC...")
+   cmd <- glue::glue("perl -lne 'next if /^[\",]+.$/; exit if m/^.$/; print' '{f}'")
+   #d <- data.table::fread(cmd=cmd) %>% 
+   d <- read.csv(pipe(cmd)) %>% mutate(ld8 = LNCDR::ld8from(f))
+
    # some MOT CSVs have weird values. column read in as character (?)
-   if('hit.latency' %in% names(d)) d$hit.latency <- as.numeric(d$hit.latency)
+   for(probcol in c('hit.latency', 'presentation.number', 'problem.number')){
+      if(probcol %in% names(d))
+         d[[probcol]] <- as.numeric(d[[probcol]])
+   }
    return(d)
 }
 
