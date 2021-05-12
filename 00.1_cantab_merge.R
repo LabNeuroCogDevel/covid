@@ -40,7 +40,7 @@ mot <- mot_7t %>%
 soc <- soc_7t %>%
     # mutate(solved.in.min=yes_to_1(solved.in.min)) %>%
     group_by(ld8) %>%
-    summarise(soc_num.moves = sum(solved.in.min=="yes", na.rm=T))
+    summarise(soc_num.moves = sum(solved.in.min=="yes" & !is.na(problem.number), na.rm=T))
 
 motsoc_7t <- merge(mot, soc, by='ld8', all=T) %>%
     separate(ld8, c('ID', 'vdate')) %>%
