@@ -1,3 +1,5 @@
 *.ini
 data/qualtrics*.csv 
 data/cantab*.csv
+data/covid*csv
+data/Summary*csv
