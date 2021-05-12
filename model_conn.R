@@ -1,38 +1,49 @@
+#!/usr/bin/env Rscript
 require(neuroCombat) 
 require(lme4)
 require(dplyr)
 require(ggplot2)
 require(tidyr)
-
-# treat data as global variable in functions
-# this is a large (~180Mb) file
-CONNDATA <- read.csv("~/Downloads/covidv3_conn_long.csv")
-
-# do only Y1
-CONNDATA <- CONNDATA %>% separate(ses_id, into=c("LunaID", "ScanDate"), sep="_", remove=F)
-CONNDATA <- CONNDATA %>%
-  group_by(LunaID) %>%
-  mutate(vdate=gsub('.*_', '', ses_id),
-         vrank=rank(vdate, ties.method="min")) %>%
-  filter(vrank < 2) %>%
-  select(-vrank)
-CONNDATA <- collapse_hemiside(CONNDATA)
-
-model <- NULL
 require(neuroCombat) 
 require(lme4)
 require(dplyr)
+require(glue)
 
 # treat data as global variable in functions
 # this is a large (~180Mb) file
-CONNDATA <- NULL
+# read and parsed using set_CONNDATA()
+CONNDATA <- NULL      # data with e.g. hemi's collapsed and anxitey score merged
+CONNDATA_orig <- NULL # raw 180Mb csv file
+
+# DEBUG
+debug_me <- function() {
+    print("hows the data look")
+    set_CONNDATA()
+    CONNDATA_info()
+    print("EXAMPLE MODELS -- everything put together")
+    m <- model_one()
+    print(summary(m))
+
+    m2 <- model_one(conn="Putamen_avmPFC")
+    print(summary(m2))
+
+    print("HARMONIZE EXAMPLE")
+    hmz <- harmonize("Putamen_avmPFC")
+    str(hmz)
+    print("DEFAULT MODEL")
+    print(default_model(hmz))
+
+    print("model harm conn")
+    print(summary(model_conn(hmz)))
+}
 
 # group by all the the columns we might use later
 # but not conn (want to mean that) and not 
 # 'srcHemi' and 'lat' (collapsing those vlues)
 collapse_hemiside <- function(d){
   d %>% group_by(study, subj, ses_id, age, sex, fd_mean, connName) %>%
-    summarise(conn=mean(conn))
+    summarise(conn=mean(conn)) %>%
+    ungroup
 }
 
 # take only the first visit
@@ -43,33 +54,49 @@ only_1ses <- function(d) {
     mutate(vdate=gsub('.*_', '', ses_id),
            vrank=rank(vdate, ties.method="min")) %>%
     filter(vrank < 2) %>%
-    select(-vrank)
+    select(-vrank) %>%
+    ungroup
 }
 
-# CONNDATA takes a while to read
-# don't want to pass it around every time we harmoinze a connName
-# so set global
-# set_CONNDATA <- function() {
-#   # updates global variable. large ~180Mb file
-#   CONNDATA <<- read.csv("~/Downloads/covid_conn_long.csv")  %>%
-#     collapse_hemiside  %>%
-#     only_1ses
-# }
+# add composite anxiety score to data. assume input df has 'subj' id
+merge_anxiety <- function(CONNDATA, id="subj"){
+  # qualtircs composite score for anxiety
+  # merge with all.x to keep all CONNDATA even if there isn't an anxiety composite score
+  # maybe later remove those without composite like: ... %>% filter(!is.na(composite))
+  #   id covid_conn_long is "subj" and in anxiety_score composite was "ID" but renamed in select above
+  anx_composite <- read.csv("data/covid_composite_0321.csv") %>%
+      select(subj=ID, composite)
 
-set_CONNDATA <- function() {
-  # qualtircs composite score for anxiety in file XXXXXX
-  # TODO: set filename
-  anx_composite <- read.csv("~/Downloads/covid_composite_0321.csv")
-  # updates global variable. large ~180Mb file
-  CONNDATA <<- read.csv("~/Downloads/covidv3_conn_long.csv")  %>%
-    collapse_hemiside  %>%
+  CONNDATA %>%
     only_1ses %>% 
-    # merge with all.x to keep all CONNDATA even if there isn't an anxiety composite score
-    # maybe later remove those without composite like: ... %>% filter(!is.na(composite))
-    # TODO: confirm:
-    #   id covid_conn_long is "id" and in anxiety_score composite is also "external_id"
-    merge(anx_composite, all.x=T, by.x="subj", by.y="ID")
+    merge(anx_composite, all.x=T, by=id)
 }
+#' CONNDATA takes a while to read. do it once here as a global variable
+#' names: 
+#  "subj"      "study"     "ses_id"    "age"       "sex"       "fd_mean"  
+#  "connName"  "conn"      "vdate"     "composite"
+set_CONNDATA <- function() {
+  # updates global variable. large ~180Mb file
+  if(is.null(CONNDATA_orig)){
+      CONNDATA_orig <<- read.csv("data/covidv3_conn_long.csv")
+      print(glue("read in {nrow(CONNDATA_orig)} conn data rows, with {length(unique(CONNDATA_orig$subj))} subjs"))
+  }
+
+  CONNDATA <<- CONNDATA_orig %>%
+      collapse_hemiside %>%
+      merge_anxiety %>%
+      filter(!is.na(composite))
+}
+
+#' compare global CONNDATA and CONNDATA_orig
+CONNDATA_info <- function() {
+  orig <- list(total_row=nrow(CONNDATA_orig), uniqid=length(unique(CONNDATA_orig$subj)))
+  new  <- list(total_row=nrow(CONNDATA), uniqid=length(unique(CONNDATA$subj)))
+  print(glue("lost {100*(nrow(CONNDATA_orig)-nrow(CONNDATA))/nrow(CONNDATA_orig)}% rows from orig (long fmt {nrow(CONNDATA)} total)"))
+  print(glue("adding composite lost: {orig$uniqid - new$uniqid} lost ids. initially: {orig$uniqid}"))
+  print(rbind(data.frame(new)%>%mutate(tbl="w/composite"), data.frame(orig)%>%mutate(tbl="orig")))
+}
+
 
 # narrow large df to just the connection we want to inspect
 # @param thisConnName roi-roi pair connectivity name "NAcc_Caudate"
@@ -141,7 +168,7 @@ plot_conn <- function(conn) {
     geom_point() +
     geom_smooth() +
     cowplot::theme_cowplot() +
-    ggtitle(glue::glue("{conn} by age w/sex"))
+    ggtitle(glue("{conn} by age w/sex"))
 }
 
 # plot the model
@@ -164,7 +191,7 @@ plot_model_sexcolor <- function(m) {
                 aes(color=NULL, fill=group,
                     ymin=conf.low, ymax=conf.high)) +
     cowplot::theme_cowplot() +
-    ggtitle(glue::glue("{conn} by age w/sex"))
+    ggtitle(glue("{conn} by age w/sex"))
 }
 
 # wrap up the two steps and catch errors so we can quickly run on everyone
@@ -182,6 +209,32 @@ pval_composite <- function(m) summary(m)$coefficients['composite','Pr(>|t|)']
 composite_issig <- function(m, p=.05) pval_composite(m) < p
 
 ### START HERE
+#' harmonize and lm or lmer for each connection
+#' @param model model to use. e.g. conn ~ composite + age + sex + fd_mean + study
+#'              if null, get from using default_model() on harmonized output
+model_harmonize_all <- function(model=NULL){
+  # updating global variable! only do it if it doesn't exist
+  if(!exists("CONNDATA") || is.null(CONNDATA)) set_CONNDATA()
+  
+  # if model is null, default set in model_conn is used
+  #  model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
+  all_conns <- unique(CONNDATA$connName)
+  all_models <- lapply(all_conns, harmonize_and_model, model=model)
+  names(all_models) <- all_conns
+  return(all_models)
+}
+
+#' debug a model for a given connection
+#' @param lm/lmer model default NULL uses default_model() 
+#' @param conn   default NULL uses first connName in CONNDATA
+#' @global CONNDATA
+model_one <- function(model=NULL, conn=NULL) {
+    if(is.null(conn)) conn <- first(unique(CONNDATA$connName))
+    harmonize_and_model(conn)
+}
+
+
+
 model_CONNDATA <-function(model=NULL){
   # updating global variable! only do it if it doesn't exist
   if(!exists("CONNDATA") || is.null(CONNDATA)) set_CONNDATA()
@@ -189,7 +242,7 @@ model_CONNDATA <-function(model=NULL){
   # if model is null, default set in model_conn is used
   #  model <- conn ~ age + sex + fd_mean + srcHemi + lat + (1|study/subj)
   all_conns <- unique(CONNDATA$connName)
-  all_models <- lapply(all_conns, harmonize_and_model, model=default_model)
+  all_models <- lapply(all_conns, harmonize_and_model, model=model)
   names(all_models) <- all_conns
   
   # remove models that failed
@@ -213,7 +266,7 @@ model_CONNDATA <-function(model=NULL){
   #sig_models <- Filter(function(m) age_issig(m, p=.01), all_models)
   
   sig_models_05 <- all_models[all_pvals <= .05]
-  cat(glue::glue("{length(all_conns)} total connections, {length(all_models)} modeled, and {length(sig_models_05)} with sig composite effect (p<.05, uncorrected)\n"))
+  cat(glue("{length(all_conns)} total connections, {length(all_models)} modeled, and {length(sig_models_05)} with sig composite effect (p<.05, uncorrected)\n"))
   
   
 #  plot_conn(names(sig_models_05)[1])
@@ -222,6 +275,3 @@ model_CONNDATA <-function(model=NULL){
   return(all_models)
   return(sig_models_05)
 }
-
-
-
