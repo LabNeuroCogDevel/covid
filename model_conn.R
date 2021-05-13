@@ -9,20 +9,27 @@
 #
 #  all_models <- model_CONNDATA()
 #  sig_models <- filter_sig_models(all_models, 'composite', .05)
+#  # also
+#  simple_models <- model_CONNDATA(conn~age+composite)
 # 
 #  where model_CONNDATA() puts most of the smaller functions together
 #  and filter_sig_models() limits the list of models to those that are interesting
 #  see debug_me() for specifics
 #  
 # NOTES:
-#  CONNDATA is very large. some effort is taken to reduce frequently loading it
-#    burn-your-eyes bad coding practice: CONNDATA (and CONNDATA_orig) are globals!
-#    using '<<-' assignment operator to set 
+# * you can test a new model like
+#     m3 <- model_one(model=conn~age+composite, conn="pHPC_sgACC")
+#   if it works, run like
+#    all_new_models <- model_CONNDATA(conn~age+composite)
 #
-# large files are not tracked in git. expect data/ to have
-#  data/covid_composite_0321.csv
-#  data/covidv3_conn_long.csv
-# these are on rhea:/Volumes/Hera/Projects/covid/data
+# * CONNDATA is very large. some effort is taken to reduce frequently loading it
+#     burn-your-eyes bad coding practice: CONNDATA (and CONNDATA_orig) are globals!
+#     using '<<-' assignment operator to set 
+#
+# * large files are not tracked in git. expect data/ to have
+#     data/covid_composite_0321.csv
+#     data/covidv3_conn_long.csv
+#   these are on rhea:/Volumes/Hera/Projects/covid/data
 
 require(neuroCombat) 
 require(lme4)
@@ -49,6 +56,11 @@ debug_me <- function() {
 
     m2 <- model_one(conn="Putamen_avmPFC")
     print(summary(m2))
+
+    
+    m3 <- model_one(model=conn~age+composite, conn="pHPC_sgACC")
+    print(pvalue_of(m3, 'composite')) # 0.002132337
+    print(summary(m3))
 
     print("HARMONIZE EXAMPLE")
     hmz <- harmonize("Putamen_avmPFC")
@@ -232,6 +244,7 @@ plot_model_sexcolor <- function(m) {
 
 # wrap up the two steps and catch errors so we can quickly run on everyone
 # even if some models don't work (namely roi paired with it's self)
+# used by model_CONNDATA()
 harmonize_and_model <-function(connName, ...){
   tryCatch(model_conn(harmonize(connName), ...),error=function(e){
     warning(e)
@@ -276,7 +289,8 @@ model_CONNDATA <-function(model=NULL){
   # remove models that failed
   # N.B. names(all_models) is no longer the same as all_conns
   all_models <- Filter(function(x) !is.null(x), all_models)
-  cat(glue("have {length(all_conns)} connections and {length(all_models)} successful models\n"))
+  cat(glue("have {length(all_conns)} connections and {length(all_models)} successful models using "),
+      format(model), "\n")
   return(all_models)
 }
 
